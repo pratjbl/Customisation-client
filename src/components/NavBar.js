@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { NavLink as RouterNavLink } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useSelector } from "react-redux";
-
+import configJson from "../auth_config.json";
 import { useLocation } from "react-router-dom";
 
 import {
@@ -23,11 +23,25 @@ import {
 
 import { useAuth0 } from "@auth0/auth0-react";
 
-const NavBar = () => {
+const NavBar = (props) => {
   const currentValue = useSelector((state) => state.counter.value);
   const value = useLocation().search;
-
+  const {
+    user,
+    isAuthenticated,
+    loginWithRedirect,
+    getAccessTokenSilently,
+    getIdTokenClaims,
+  } = useAuth0();
   const [finalState, setFinalState] = useState({});
+  const getAccessToken = async () => {
+    if (isAuthenticated) {
+      const data = await getAccessTokenSilently({ detailedResponse: true });
+      const data2 = await getIdTokenClaims();
+      console.log(data2, "access");
+      props.setResponse({ AccessToken: data, IdToken: data2?.__raw });
+    }
+  };
   useEffect(() => {
     function UseQuery() {
       return new URLSearchParams(value);
@@ -49,6 +63,7 @@ const NavBar = () => {
       culture: currentValue?.culture || Culture() || "",
       affid: currentValue?.affid || AffId() || 0,
       enableBack: currentValue?.enableBack,
+      devicerefid: "example-devicerefid",
       enableSkip: currentValue?.enableSkip,
       hideHeader: currentValue?.hideHeader,
       hideFooter: currentValue?.hideFooter,
@@ -56,35 +71,44 @@ const NavBar = () => {
       aai: {
         ea: currentValue?.ea || "",
         cc: {
-          Login:
-            currentValue?.mode !== "register"
-              ? {
-                  hideSignUp: currentValue?.hideSignUp,
-                  disableEmail: currentValue?.disableEmail,
-                }
-              : null,
-          SignUp:
-            currentValue?.mode === "register"
-              ? {
-                  hideLoginCTA: currentValue?.hideLoginCTA,
-                  disableEmail: currentValue?.disableEmail,
-                }
-              : null,
+          Login: {
+            hideLoginCTA: currentValue?.hideLoginCTAfromOTP,
+            hideResetPwdLink: currentValue?.hideResetPwdLink,
+            hideSignUp:
+              currentValue?.mode !== "register"
+                ? currentValue?.hideSignUp
+                : null,
+            disableEmail:
+              currentValue?.mode !== "register"
+                ? currentValue?.disableEmail
+                : null,
+            hideGoogleButton: currentValue?.hideGoogleLogin,
+          },
+          SignUp: {
+            hideGoogleButton: currentValue?.hideGoogleSignUp,
+            hideLoginCTA:
+              currentValue?.mode === "register"
+                ? currentValue?.hideLoginCTA
+                : null,
+            disableEmail:
+              currentValue?.mode === "register"
+                ? currentValue?.disableEmail
+                : null,
+          },
           mode: currentValue?.mode,
         },
       },
     });
+    getAccessToken();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentValue, value]);
   console.log("---->In the Navbar", finalState, currentValue);
 
   const [isOpen, setIsOpen] = useState(false);
-  const { user, isAuthenticated, loginWithRedirect, logout } = useAuth0();
   const toggle = () => setIsOpen(!isOpen);
 
   const logoutWithRedirect = () =>
-    logout({
-      returnTo: window.location.origin,
-    });
+    (window.location = `https://idqa.mcafee.com/logout?redirectTo=${window.location.origin}&clientId=${configJson.clientId}`);
 
   return (
     <div className="nav-container">
@@ -118,11 +142,23 @@ const NavBar = () => {
                 <NavItem>
                   <NavLink
                     tag={RouterNavLink}
-                    to="/external-api"
+                    to="/parseLoginAccessToken"
                     exact
                     activeClassName="router-link-exact-active"
                   >
-                    External API
+                    Custom Claims
+                  </NavLink>
+                </NavItem>
+              )}
+              {isAuthenticated && (
+                <NavItem>
+                  <NavLink
+                    tag={RouterNavLink}
+                    to="/main-component"
+                    exact
+                    activeClassName="router-link-exact-active"
+                  >
+                    Enroll MFA
                   </NavLink>
                 </NavItem>
               )}
@@ -134,10 +170,13 @@ const NavBar = () => {
                     id="qsLoginBtn"
                     color="primary"
                     className="btn-margin"
-                    onClick={() =>
+                    onClick={() => {
+                      localStorage.setItem("culture", finalState?.culture);
                       loginWithRedirect({
                         ...finalState,
                         aai: JSON.stringify(finalState.aai),
+                        source: "suhas-test",
+                        // connectionName: "AV-Migration-Pwd-Authentication",
                         // affid: AffId(),
                         // fragment: `culture=en-us&aff_id=105`,
                         // &aai=${JSON.stringify(
@@ -149,8 +188,8 @@ const NavBar = () => {
                         // appState: {
                         //   returnTo: "?culture=en-gb&aff_id=105",
                         // },
-                      })
-                    }
+                      });
+                    }}
                   >
                     Log in
                   </Button>
@@ -160,14 +199,14 @@ const NavBar = () => {
                 <UncontrolledDropdown nav inNavbar>
                   <DropdownToggle nav caret id="profileDropDown">
                     <img
-                      src={user.picture}
+                      src={user?.picture}
                       alt="Profile"
                       className="nav-user-profile rounded-circle"
                       width="50"
                     />
                   </DropdownToggle>
                   <DropdownMenu>
-                    <DropdownItem header>{user.name}</DropdownItem>
+                    <DropdownItem header>{user?.name}</DropdownItem>
                     <DropdownItem
                       tag={RouterNavLink}
                       to="/profile"
@@ -194,12 +233,13 @@ const NavBar = () => {
                     id="qsLoginBtn"
                     color="primary"
                     block
-                    onClick={() =>
+                    onClick={() => {
+                      localStorage.setItem("culture", finalState?.culture);
                       loginWithRedirect({
                         ...finalState,
                         aai: JSON.stringify(finalState.aai),
-                      })
-                    }
+                      });
+                    }}
                   >
                     Log in
                   </Button>
@@ -215,12 +255,12 @@ const NavBar = () => {
                 <NavItem>
                   <span className="user-info">
                     <img
-                      src={user.picture}
+                      src={user?.picture}
                       alt="Profile"
                       className="nav-user-profile d-inline-block rounded-circle mr-3"
                       width="50"
                     />
-                    <h6 className="d-inline-block">{user.name}</h6>
+                    <h6 className="d-inline-block">{user?.name}</h6>
                   </span>
                 </NavItem>
                 <NavItem>
