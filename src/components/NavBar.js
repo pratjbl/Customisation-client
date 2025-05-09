@@ -68,6 +68,9 @@ const NavBar = (props) => {
       hideHeader: currentValue?.hideHeader,
       hideFooter: currentValue?.hideFooter,
       ui_locales: currentValue?.ui_locales,
+      custom_layout: true,
+      uxver: 2,
+      authSource: "signin",
       aai: {
         ea: currentValue?.ea || "",
         cc: {
